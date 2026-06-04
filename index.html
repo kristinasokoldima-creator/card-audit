@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Аудит карточки WB / Ozon</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0a; color: #f0ece4; font-family: 'Geologica', sans-serif; min-height: 100vh; }
+
+  .blob { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+  .b1 { width: 400px; height: 400px; background: #ff6b1a; opacity: 0.08; top: -80px; right: -80px; }
+  .b2 { width: 300px; height: 300px; background: #ff6b1a; opacity: 0.04; bottom: -60px; left: -60px; }
+
+  .app { max-width: 480px; margin: 0 auto; padding: 24px 16px 80px; position: relative; z-index: 1; }
+
+  .header { text-align: center; margin-bottom: 28px; }
+  .tag {
+    display: inline-block; background: rgba(255,107,26,0.12);
+    border: 1px solid rgba(255,107,26,0.25); color: #ff6b1a;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; padding: 5px 14px; border-radius: 20px; margin-bottom: 12px;
+  }
+  h1 { font-family: 'Unbounded', sans-serif; font-size: 24px; font-weight: 900; line-height: 1.2; }
+  h1 span { color: #ff6b1a; }
+  .sub { margin-top: 8px; font-size: 13px; color: #666; }
+
+  .upload-zone {
+    border: 2px dashed #2a2a2a; border-radius: 20px; padding: 40px 24px;
+    text-align: center; cursor: pointer; transition: all 0.25s;
+    background: #111; margin-bottom: 16px;
+  }
+  .upload-zone.drag, .upload-zone:hover { border-color: #ff6b1a; background: rgba(255,107,26,0.05); }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-title { font-family: 'Unbounded', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .upload-sub { font-size: 12px; color: #666; }
+  .upload-sub span { color: #ff6b1a; }
+
+  .preview-wrap { border-radius: 16px; overflow: hidden; margin-bottom: 16px; border: 1px solid #2a2a2a; position: relative; cursor: pointer; }
+  .preview-wrap img { width: 100%; display: block; max-height: 320px; object-fit: contain; background: #111; }
+  .preview-hint { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: #888; font-size: 11px; padding: 4px 10px; border-radius: 10px; }
+
+  .btn-analyze {
+    width: 100%; padding: 16px; background: #ff6b1a; border: none; border-radius: 14px;
+    color: #fff; font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; margin-bottom: 10px;
+  }
+  .btn-analyze:hover { background: #ff8040; transform: translateY(-1px); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .loading { text-align: center; padding: 40px 0; }
+  .spinner { width: 44px; height: 44px; border: 3px solid #222; border-top-color: #ff6b1a; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 14px; color: #888; }
+  .loading small { font-size: 12px; color: #555; }
+
+  .error-box { background: #1a0f0f; border: 1px solid #3a1a1a; border-radius: 14px; padding: 16px; text-align: center; font-size: 13px; color: #f87171; margin-bottom: 12px; }
+
+  /* RESULT */
+  .result { animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+  .score-card {
+    background: linear-gradient(135deg, #161410, #141414);
+    border: 1px solid rgba(255,107,26,0.2); border-radius: 20px;
+    padding: 20px; display: flex; gap: 16px; align-items: center;
+    margin-bottom: 12px; position: relative; overflow: hidden;
+  }
+  .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #ff6b1a, transparent); }
+  .score-ring-wrap { flex-shrink: 0; }
+  .score-info { flex: 1; }
+  .score-product { font-family: 'Unbounded', sans-serif; font-size: 12px; font-weight: 700; margin-bottom: 5px; line-height: 1.4; }
+  .score-plat { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; background: rgba(255,107,26,0.15); color: #ff6b1a; margin-bottom: 8px; }
+  .score-verdict { font-size: 12px; color: #888; }
+
+  .stats { display: flex; gap: 8px; margin-bottom: 14px; }
+  .stat { flex: 1; padding: 12px 8px; border-radius: 12px; text-align: center; background: #131313; border: 1px solid #1e1e1e; }
+  .stat-n { font-family: 'Unbounded', sans-serif; font-size: 20px; font-weight: 900; }
+  .stat-l { font-size: 10px; color: #555; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .sec-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #444; margin-bottom: 10px; padding-left: 2px; }
+  .summary { font-size: 13px; color: #999; line-height: 1.6; background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+
+  .strengths { background: #0f1a0f; border: 1px solid #1a2e1a; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
+  .str-item { display: flex; gap: 8px; font-size: 13px; color: #aaa; margin-bottom: 7px; line-height: 1.4; }
+  .str-item:last-child { margin-bottom: 0; }
+  .str-dot { color: #4ade80; flex-shrink: 0; margin-top: 2px; }
+
+  .issue { background: #111; border: 1px solid #1e1e1e; border-radius: 14px; margin-bottom: 8px; overflow: hidden; cursor: pointer; }
+  .issue-head { display: flex; align-items: center; gap: 8px; padding: 13px 16px; flex-wrap: wrap; }
+  .i-icon { font-size: 14px; }
+  .i-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+  .i-cat { font-size: 11px; color: #444; }
+  .i-title { font-size: 13px; font-weight: 600; color: #f0ece4; flex: 1; min-width: 100%; margin-top: 4px; }
+  .i-arrow { font-size: 11px; color: #444; transition: transform 0.2s; margin-left: auto; }
+  .issue-body { padding: 0 16px 14px; border-top: 1px solid #1a1a1a; display: none; }
+  .issue-body.open { display: block; }
+  .i-desc { font-size: 12px; color: #888; line-height: 1.5; margin: 10px 0 8px; }
+  .i-fix { font-size: 12px; color: #ccc; background: #1a1a1a; border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
+
+  .cta { background: linear-gradient(135deg, #1e1208, #161010); border: 1px solid rgba(255,107,26,0.3); border-radius: 20px; padding: 24px; margin-top: 20px; text-align: center; position: relative; overflow: hidden; }
+  .cta::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #ff6b1a, transparent); }
+  .cta-em { font-size: 32px; margin-bottom: 10px; }
+  .cta-title { font-family: 'Unbounded', sans-serif; font-size: 16px; font-weight: 900; margin-bottom: 8px; }
+  .cta-title span { color: #ff6b1a; }
+  .cta-text { font-size: 13px; color: #777; line-height: 1.5; margin-bottom: 18px; }
+  .btn-cta { display: block; width: 100%; padding: 15px; background: #ff6b1a; border: none; border-radius: 12px; color: #fff; font-family: 'Unbounded', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 8px; transition: all 0.2s; }
+  .btn-cta:hover { background: #ff8040; }
+  .btn-reset { width: 100%; padding: 12px; background: transparent; border: 1px solid #2a2a2a; border-radius: 12px; color: #555; font-family: 'Geologica', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+  .btn-reset:hover { border-color: #444; color: #888; }
+
+  #file-input { display: none; }
+  .divider { height: 1px; background: #1a1a1a; margin: 18px 0; }
+</style>
+</head>
+<body>
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+
+<div class="app">
+  <div class="header">
+    <div class="tag">AI-аудит карточки</div>
+    <h1>Почему твой товар<br><span>не покупают?</span></h1>
+    <p class="sub">Загрузи скриншот карточки WB или Ozon — ИИ найдёт все проблемы за 15 секунд</p>
+  </div>
+
+  <div id="upload-section">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📦</div>
+      <div class="upload-title">Загрузи скриншот карточки</div>
+      <p class="upload-sub">Перетащи файл или <span>нажми для выбора</span></p>
+      <p class="upload-sub" style="margin-top:6px">JPG, PNG, WebP</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*">
+  </div>
+
+  <div id="preview-section" style="display:none">
+    <div class="preview-wrap" onclick="document.getElementById('file-input').click()">
+      <img id="preview-img" src="" alt="preview">
+      <div class="preview-hint">Нажми чтобы заменить</div>
+    </div>
+    <button class="btn-analyze" id="analyze-btn" onclick="analyze()">🔍 Проанализировать карточку</button>
+  </div>
+
+  <div id="loading-section" style="display:none">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Анализирую карточку...</p>
+      <small>ИИ изучает фото, заголовок, описание и SEO</small>
+    </div>
+  </div>
+
+  <div id="error-box" class="error-box" style="display:none"></div>
+
+  <div id="result-section" style="display:none"></div>
+</div>
+
+<script>
+  let imageBase64 = null;
+  let imageMime = 'image/jpeg';
+
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); processFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', e => processFile(e.target.files[0]));
+
+  function processFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    imageMime = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      // Сжимаем через canvas
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.85);
+        imageBase64 = compressed.split(',')[1];
+        imageMime = 'image/jpeg';
+        document.getElementById('preview-img').src = compressed;
+        document.getElementById('upload-section').style.display = 'none';
+        document.getElementById('preview-section').style.display = 'block';
+        document.getElementById('result-section').style.display = 'none';
+        document.getElementById('error-box').style.display = 'none';
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function analyze() {
+    if (!imageBase64) return;
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('loading-section').style.display = 'block';
+    document.getElementById('error-box').style.display = 'none';
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, imageMime })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      showResult(data);
+    } catch(e) {
+      document.getElementById('loading-section').style.display = 'none';
+      document.getElementById('preview-section').style.display = 'block';
+      const eb = document.getElementById('error-box');
+      eb.textContent = 'Ошибка: ' + e.message;
+      eb.style.display = 'block';
+    }
+  }
+
+  function scoreColor(s) { return s >= 70 ? '#4ade80' : s >= 45 ? '#facc15' : '#f87171'; }
+  function scoreLabel(s) { return s >= 70 ? 'Всё хорошо' : s >= 45 ? 'Есть проблемы' : 'Критично'; }
+  const typeColor = { critical: '#f87171', warning: '#facc15', tip: '#60a5fa' };
+  const typeIcon = { critical: '🚨', warning: '⚠️', tip: '💡' };
+  const typeLabel = { critical: 'Критично', warning: 'Важно', tip: 'Совет' };
+
+  function scoreRing(score) {
+    const r = 36, circ = 2 * Math.PI * r;
+    const offset = circ - (score / 100) * circ;
+    const color = scoreColor(score);
+    return `<svg width="90" height="90" style="transform:rotate(-90deg)">
+      <circle cx="45" cy="45" r="${r}" fill="none" stroke="#222" stroke-width="7"/>
+      <circle cx="45" cy="45" r="${r}" fill="none" stroke="${color}" stroke-width="7"
+        stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"
+        style="transition:stroke-dashoffset 1.2s ease"/>
+      <text x="45" y="45" text-anchor="middle" dominant-baseline="central"
+        fill="${color}" font-size="18" font-weight="900" font-family="Unbounded,sans-serif"
+        style="transform:rotate(90deg);transform-origin:45px 45px">${score}</text>
+    </svg>`;
+  }
+
+  function showResult(d) {
+    document.getElementById('loading-section').style.display = 'none';
+    const critical = d.issues.filter(i => i.type === 'critical').length;
+    const warning = d.issues.filter(i => i.type === 'warning').length;
+    const tips = d.issues.filter(i => i.type === 'tip').length;
+    const color = scoreColor(d.score);
+
+    const ctaText = d.score >= 70
+      ? 'Карточка выглядит хорошо! Хочешь убедиться что всё идеально или подготовить её к следующему сезону?'
+      : 'Я помогу переработать фото, заголовок, описание и SEO. Напиши — разберём твой товар лично.';
+
+    const issuesHtml = d.issues.map((issue, i) => `
+      <div class="issue" style="border-left:3px solid ${typeColor[issue.type]}" onclick="toggleIssue(${i})">
+        <div class="issue-head">
+          <span class="i-icon">${typeIcon[issue.type]}</span>
+          <span class="i-badge" style="background:${typeColor[issue.type]}22;color:${typeColor[issue.type]}">${typeLabel[issue.type]}</span>
+          <span class="i-cat">${issue.category}</span>
+          <span class="i-arrow" id="arrow-${i}">▼</span>
+          <span class="i-title">${issue.title}</span>
+        </div>
+        <div class="issue-body" id="body-${i}">
+          <div class="i-desc">${issue.description}</div>
+          <div class="i-fix">✏️ ${issue.fix}</div>
+        </div>
+      </div>
+    `).join('');
+
+    const strengthsHtml = d.strengths.map(s => `
+      <div class="str-item"><span class="str-dot">✓</span><span>${s}</span></div>
+    `).join('');
+
+    document.getElementById('result-section').innerHTML = `
+      <div class="result">
+        <div class="score-card">
+          <div class="score-ring-wrap">${scoreRing(d.score)}</div>
+          <div class="score-info">
+            <div class="score-product">${d.product}</div>
+            <div class="score-plat">${d.platform}</div>
+            <div class="score-verdict"><strong style="color:${color}">${scoreLabel(d.score)}</strong> — оценка карточки</div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat-n" style="color:#f87171">${critical}</div><div class="stat-l">Критично</div></div>
+          <div class="stat"><div class="stat-n" style="color:#facc15">${warning}</div><div class="stat-l">Важно</div></div>
+          <div class="stat"><div class="stat-n" style="color:#60a5fa">${tips}</div><div class="stat-l">Советов</div></div>
+        </div>
+        <div class="summary">${d.summary}</div>
+        <div class="sec-title">✅ Что уже хорошо</div>
+        <div class="strengths">${strengthsHtml}</div>
+        <div class="sec-title">🔎 Найденные проблемы — нажми чтобы раскрыть</div>
+        ${issuesHtml}
+        <div class="cta">
+          <div class="cta-em">${d.score >= 70 ? '✨' : '🚀'}</div>
+          <div class="cta-title">${d.score >= 70 ? 'Карточка <span>неплохая!</span>' : 'Исправим карточку <span>профессионально?</span>'}</div>
+          <p class="cta-text">${ctaText}</p>
+          <a class="btn-cta" href="https://t.me/ТВОЙ_TELEGRAM" target="_blank">✉️ Написать и получить помощь</a>
+        </div>
+        <div class="divider"></div>
+        <button class="btn-reset" onclick="resetAll()">← Проверить другую карточку</button>
+      </div>
+    `;
+    document.getElementById('result-section').style.display = 'block';
+  }
+
+  function toggleIssue(i) {
+    const body = document.getElementById('body-' + i);
+    const arrow = document.getElementById('arrow-' + i);
+    body.classList.toggle('open');
+    arrow.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+
+  function resetAll() {
+    imageBase64 = null;
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('result-section').style.display = 'none';
+    document.getElementById('error-box').style.display = 'none';
+    document.getElementById('file-input').value = '';
+  }
+</script>
+</body>
+</html>
